@@ -100,10 +100,10 @@ export function selectInProjectView(path?: string | null, focus = true) {
  * Select In (⌥F1): a chooser of the places that can show `path` (default: the
  * active editor's file): the project view, contributed targets (`selectIn`
  * menu groups), the navigation bar, Finder / Explorer and the terminal.
+ * 每项带编号，按数字直接执行，和 IDEA 一致。
  */
 export function selectInTargets(path: string): MenuItem[] {
-  return [
-    { kind: "header", label: "Select In" },
+  const targets: MenuItem[] = [
     { label: "Project View", icon: "toolwindow-project", run: () => void selectInProjectView(path) },
     ...menuGroupItems("selectIn", { paths: [path] }),
     ...(getAction("navigate.navigationBar") && maybeEditorService()?.activePath() === path
@@ -114,6 +114,16 @@ export function selectInTargets(path: string): MenuItem[] {
       ? [{ label: "Terminal", icon: "terminal", run: () => void delegate("terminal.openAt", parentOf(path)) }]
       : []),
   ];
+  return [{ kind: "header", label: "Select In" }, ...numberedTargets(targets)];
+}
+
+/** 只给可选项编号（1 开始），标题与分隔线保持原样。 */
+function numberedTargets(items: MenuItem[]): MenuItem[] {
+  let n = 0;
+  return items.map((item): MenuItem => {
+    if (item.kind === "separator" || item.kind === "header") return item;
+    return { ...item, mnemonic: String(++n) };
+  });
 }
 
 /**

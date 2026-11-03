@@ -49,6 +49,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 助记键：IDEA 风格菜单编号，按下即执行该项。 */
+.mnemonic {
+  margin-right: 6px;
+  color: var(--fg-muted);
+}
 .shortcut {
   margin-left: 24px;
   font-family: var(--font-keys);

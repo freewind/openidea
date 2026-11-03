@@ -32,6 +32,8 @@ export type MenuItem =
       label?: string;
       icon?: IconName | (string & {});
       disabled?: boolean;
+      /** 助记键：按下就直接执行该项（IDEA 风格的菜单编号）。 */
+      mnemonic?: string;
     }
   | {
       kind?: "item";
@@ -46,12 +48,15 @@ export type MenuItem =
       danger?: boolean;
       run?: () => void;
       submenu?: MenuItem[];
+      /** 助记键：按下就直接执行该项（IDEA 风格的菜单编号）。 */
+      mnemonic?: string;
     };
 
 interface Resolved {
   kind: "item" | "separator" | "header";
   key: string;
   label: string;
+  mnemonic?: string;
   icon?: string;
   shortcut?: string;
   disabled?: boolean;
@@ -83,6 +88,7 @@ export function resolveMenuItems(items: MenuItem[]): Resolved[] {
         icon: item.icon ?? a.icon,
         shortcut: shortcutLabel(item.action),
         disabled: !!item.disabled || !isActionEnabled(a),
+        mnemonic: item.mnemonic,
         run: () => void executeAction(item.action, item.arg),
       });
       return;
@@ -185,6 +191,12 @@ export function MenuList({ items, onDone, onCloseLevel, autoFocusFirst = true, .
       default:
         if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
           const ch = e.key.toLowerCase();
+          // 助记键（Select In 的编号）命中即执行，和 IDEA 一致。
+          const hit = resolved.findIndex((r) => r.mnemonic?.toLowerCase() === ch);
+          if (hit >= 0 && selectable(resolved[hit])) {
+            activate(hit);
+            break;
+          }
           const n = resolved.length;
           for (let s = 1; s <= n; s++) {
             const i = (active + s + n) % n;
@@ -243,7 +255,10 @@ export function MenuList({ items, onDone, onCloseLevel, autoFocusFirst = true, .
               <span className={styles.icon} data-menu-icon={!r.checked && r.icon ? "" : undefined}>
                 {r.checked ? <Icon name="check" size={13} /> : r.icon ? <Icon name={r.icon} size={14} /> : null}
               </span>
-              <span className={styles.label}>{r.label}</span>
+              <span className={styles.label}>
+                {r.mnemonic && <span className={styles.mnemonic}>{r.mnemonic}</span>}
+                {r.label}
+              </span>
               {r.shortcut && <span className={styles.shortcut}>{r.shortcut}</span>}
               {hasSub && <Icon name="chevron-right" size={14} className={styles.subArrow} />}
             </button>
