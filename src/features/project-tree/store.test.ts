@@ -8,6 +8,7 @@ import {
   expandAll,
   initProjectTree,
   loadDir,
+  modeShows,
   revealPath,
   setExpanded,
   setSelection,
@@ -220,5 +221,50 @@ describe("single-click expansion", () => {
     const fresh = await import("./store");
     expect(fresh.useProjectTree.getState().options.singleClickExpand).toBe(true);
     setViewOption("singleClickExpand", false);
+  });
+});
+
+describe("workspace member roots", () => {
+  const WORKSPACE = "/ws";
+  const members = ["/a", "/b"];
+
+  beforeEach(() => {
+    const workspaceFs = new MemoryFs(
+      { "/a/src/x.ts": "x", "/b/y.ts": "y", "/ws/.openidea/workspace.json": "{}" },
+      WORKSPACE,
+    );
+    setProjectFsForTests(workspaceFs, WORKSPACE);
+    initProjectTree(WORKSPACE, "WS", members);
+  });
+
+  it("reveals files under every member root, not just the first", async () => {
+    // Start collapsed: every expanded key below must come from revealPath.
+    setExpanded(new Set());
+    expect(revealPath("/a/src/x.ts")).toBe(true);
+    await vi.waitFor(() => expect(childLabels("/a/src")).toEqual(["x.ts"]));
+    let s = useProjectTree.getState();
+    expect(s.expanded.has("/a")).toBe(true);
+    expect(s.expanded.has("/a/src")).toBe(true);
+    expect(s.revealRequest?.path).toBe("/a/src/x.ts");
+    expect(visibleInfo(currentModel(), s.expanded).visible.has("/a/src/x.ts")).toBe(true);
+
+    expect(revealPath("/b/y.ts")).toBe(true);
+    await vi.waitFor(() => expect(childLabels("/b")).toEqual(["y.ts"]));
+    s = useProjectTree.getState();
+    expect(s.expanded.has("/b")).toBe(true);
+    expect(s.revealRequest?.path).toBe("/b/y.ts");
+    expect(visibleInfo(currentModel(), s.expanded).visible.has("/b/y.ts")).toBe(true);
+  });
+
+  it("keeps workspace members visible in the Project Files pane", () => {
+    useProjectTree.setState({ mode: "projectFiles" });
+    try {
+      expect(modeShows("/a/src/x.ts")).toBe(true);
+      expect(modeShows("/b/y.ts")).toBe(true);
+      // The workspace container itself is not a tree root.
+      expect(modeShows("/ws/.openidea/workspace.json")).toBe(false);
+    } finally {
+      useProjectTree.setState({ mode: "project" });
+    }
   });
 });

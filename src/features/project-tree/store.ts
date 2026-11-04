@@ -544,15 +544,29 @@ export function dropOutlines(paths: readonly string[]) {
 
 let revealSeq = 0;
 
+/** The tree root that owns `path`: a workspace member, the project root, or a contributed folder. */
+function rootFor(path: string): string | null {
+  const { root, members } = get();
+  if (members !== null) {
+    // A workspace's tree has only its member roots; its own directory is not a root.
+    let best: string | null = null;
+    for (const m of members) if (isSameOrInside(path, m) && (best === null || m.length > best.length)) best = m;
+    if (best) return best;
+  } else {
+    if (!root) return null;
+    if (isSameOrInside(path, root)) return root;
+  }
+  return extraRootOf(path);
+}
+
 /** Expands the ancestors of `path` and selects it once visible. */
 export function revealPath(path: string, focus = false) {
   const { expanded } = get();
-  const project = get().root;
-  const root = project && isSameOrInside(path, project) ? project : project ? extraRootOf(path) : null;
+  const root = rootFor(path);
   if (!root) return false;
   // Library folders sit below group nodes (External Libraries › SDK), keyed in their own namespace.
   const model = currentModel();
-  const rootKey = root === project ? root : (model.keyOfPath.get(root) ?? root);
+  const rootKey = model.keyOfPath.get(root) ?? root;
   const folders = ancestorsWithin(root, path);
   const ancestors = [...groupAncestors(model, rootKey), ...folders.map((a) => keyLike(rootKey, a))];
   const next = new Set(expanded);
@@ -583,7 +597,7 @@ export function modeShows(path: string): boolean {
     case "project":
       return true;
     case "projectFiles":
-      return isSameOrInside(path, root);
+      return rootFor(path) !== null;
     case "scratches":
       return projectViewRoots(useProjectViewRoots.getState().roots).some(
         (r) => r.scope === "scratches" && r.path !== undefined && isSameOrInside(path, r.path),
