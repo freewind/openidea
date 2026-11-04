@@ -15,6 +15,7 @@ import { getAction, isActionKeyEnabled, executeAction } from "./actions";
 import { getContext } from "./context";
 import { intellijMacos } from "./keymaps/intellij-macos";
 import { intellijWindows } from "./keymaps/intellij-windows";
+import { intellijClassicMacos } from "./keymaps/intellij-classic-macos";
 import { eclipseMacos } from "./keymaps/eclipse-macos";
 import { eclipseWindows } from "./keymaps/eclipse-windows";
 import { vscodeMacos } from "./keymaps/vscode-macos";
@@ -35,6 +36,7 @@ export function defaultPreset(): string {
 export const PRESETS: Record<string, Keymap> = {
   "intellij-macos": intellijMacos,
   "intellij-windows": intellijWindows,
+  "intellij-classic-macos": intellijClassicMacos,
   "vscode-macos": vscodeMacos,
   "vscode-windows": vscodeWindows,
   "eclipse-macos": eclipseMacos,
@@ -45,6 +47,7 @@ export const PRESETS: Record<string, Keymap> = {
 export const PRESET_TITLES: Record<string, string> = {
   "intellij-macos": "macOS",
   "intellij-windows": "Windows",
+  "intellij-classic-macos": "IntelliJ IDEA Classic (macOS)",
   "vscode-macos": "VS Code (macOS)",
   "vscode-windows": "VS Code (Windows)",
   "eclipse-macos": "Eclipse (macOS)",
