@@ -74,11 +74,47 @@ export const cursorLineDown: Command = (view) => moveCarets(view, true, false);
 export const selectLineUp: Command = (view) => moveCarets(view, false, true);
 export const selectLineDown: Command = (view) => moveCarets(view, true, true);
 
-/** Clone Caret Above / Below: a caret on the next line at each caret's goal column. */
+/** One batch of carets added by a clone, kept so the opposite direction can undo it. */
+interface CloneBatch {
+  heads: readonly number[];
+  forward: boolean;
+}
+const setCloneStack = StateEffect.define<readonly CloneBatch[]>();
+
+/** Clone history since the last non-clone selection change; any other selection or doc change resets it. */
+export const cloneStack = StateField.define<readonly CloneBatch[]>({
+  create: () => [],
+  update(value, tr) {
+    for (const e of tr.effects) if (e.is(setCloneStack)) return e.value;
+    return tr.selection || tr.docChanged ? [] : value;
+  },
+});
+
+/** Clone Caret Above / Below: a caret on the next line at each caret's goal column.
+ * IntelliJ-style stack: cloning in the opposite direction undoes the last batch
+ * instead of adding another one; once the stack is empty, cloning adds again. */
 function cloneCaret(view: EditorView, forward: boolean): boolean {
   const { state } = view;
+  const stack = state.field(cloneStack, false) ?? [];
+  const top = stack[stack.length - 1];
+  if (top && top.forward !== forward) {
+    const undo = new Set(top.heads);
+    const kept = state.selection.ranges.filter((r) => !undo.has(r.head));
+    if (kept.length < state.selection.ranges.length) {
+      const goals = new Map<number, number>();
+      for (const r of kept) goals.set(r.head, goalOf(state, r.head));
+      view.dispatch({
+        selection: EditorSelection.create(kept, Math.min(state.selection.mainIndex, kept.length - 1)),
+        effects: [setGoals.of(goals), setCloneStack.of(stack.slice(0, -1))],
+        scrollIntoView: true,
+        userEvent: "select",
+      });
+      return true;
+    }
+  }
   const ranges = state.selection.ranges.slice();
   const goals = new Map<number, number>();
+  const added: number[] = [];
   for (const r of state.selection.ranges) {
     const goal = goalOf(state, r.head);
     goals.set(r.head, goal);
@@ -92,11 +128,12 @@ function cloneCaret(view: EditorView, forward: boolean): boolean {
     if (head === null || ranges.some((x) => x.head === head)) continue;
     ranges.push(EditorSelection.cursor(head));
     goals.set(head, goal);
+    added.push(head);
   }
-  if (ranges.length === state.selection.ranges.length) return false;
+  if (added.length === 0) return false;
   view.dispatch({
     selection: EditorSelection.create(ranges, ranges.length - 1),
-    effects: setGoals.of(goals),
+    effects: [setGoals.of(goals), setCloneStack.of([...stack, { heads: added, forward }])],
     scrollIntoView: true,
     userEvent: "select",
   });

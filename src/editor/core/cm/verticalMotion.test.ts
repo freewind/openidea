@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   cloneCaretAbove,
@@ -8,6 +8,7 @@ import {
   cursorLineDown,
   cursorLineUp,
   selectLineDown,
+  cloneStack,
   visibleGoalColumns,
 } from "./verticalMotion";
 
@@ -22,7 +23,12 @@ function make(doc: string, at: number) {
     state: EditorState.create({
       doc,
       selection: { anchor: at },
-      extensions: [visibleGoalColumns, EditorState.allowMultipleSelections.of(true), EditorState.tabSize.of(4)],
+      extensions: [
+        visibleGoalColumns,
+        cloneStack,
+        EditorState.allowMultipleSelections.of(true),
+        EditorState.tabSize.of(4),
+      ],
     }),
     parent: document.body,
   });
@@ -104,5 +110,31 @@ describe("Clone Caret Above / Below in visible columns", () => {
   it("does nothing at the document edge", () => {
     const v = make("张三", 1);
     expect(cloneCaretAbove(v)).toBe(false);
+  });
+
+  it("opposite direction undoes the last clone, then cloning adds again (IntelliJ stack)", () => {
+    // Caret on line 3; lines 1-5 are single words.
+    const v = make("aaa\nbbb\nccc\nhhh\neee", 8);
+    cloneCaretBelow(v);
+    cloneCaretBelow(v);
+    expect(heads(v)).toEqual([8, 12, 16]);
+    cloneCaretAbove(v);
+    expect(heads(v)).toEqual([8, 12]);
+    cloneCaretAbove(v);
+    expect(heads(v)).toEqual([8]);
+    // Stack empty: cloning resumes adding.
+    cloneCaretAbove(v);
+    expect(heads(v)).toEqual([4, 8]);
+    cloneCaretAbove(v);
+    expect(heads(v)).toEqual([0, 4, 8]);
+  });
+
+  it("opposite direction undoes a whole multi-caret batch", () => {
+    const v = make("aaa\nbbb\nccc\nhhh\neee", 0);
+    v.dispatch({ selection: EditorSelection.create([EditorSelection.cursor(0), EditorSelection.cursor(8)]) });
+    cloneCaretBelow(v);
+    expect(heads(v)).toEqual([0, 4, 8, 12]);
+    cloneCaretAbove(v);
+    expect(heads(v)).toEqual([0, 8]);
   });
 });

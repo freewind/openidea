@@ -45,7 +45,7 @@ import { caretExtension, fontZoom, methodLinesField, prefsExtension, softWrapAct
 import { commentTokens } from "./languages";
 import { multiCaretMouse } from "./multiCaret";
 import { columnModeExtension } from "./columnMode";
-import { visibleGoalColumns } from "./verticalMotion";
+import { cloneStack, visibleGoalColumns } from "./verticalMotion";
 import { tabKeymap } from "./smartKeys";
 import { editorBaseKeymap } from "./baseKeymap";
 import { occurrenceSearch } from "./editing";
@@ -332,6 +332,7 @@ export function baseExtensions(o: SetupOptions): Extension {
     multiCaretMouse,
     columnModeExtension,
     visibleGoalColumns,
+    cloneStack,
     occurrenceSearch,
     overwriteField,
     gutterLineDrag,
